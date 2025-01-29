@@ -1,0 +1,19 @@
+{
+  "name": "lila",
+  "version": "1.0.0",
+  "description": "[![Package Version](https://img.shields.io/hexpm/v/lila)](https://hex.pm/packages/lila) [![Hex Docs](https://img.shields.io/badge/hex-docs-ffaff3)](https://hexdocs.pm/lila/)",
+  "main": "index.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "dev": "source .env && gleam run",
+    "tailwind": "npx @tailwindcss/cli -i ./priv/static/input.css -o ./priv/static/output.css --watch"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@tailwindcss/cli": "^4.0.1",
+    "tailwindcss": "^4.0.1"
+  }
+}
