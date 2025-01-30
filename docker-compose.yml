@@ -1,0 +1,9 @@
+services:
+  server:
+    build:
+      context: .
+    env_file: 
+      - .env
+    image: lila-server
+    ports:
+      - "42069:42069"                     
