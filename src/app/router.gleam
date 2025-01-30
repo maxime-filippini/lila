@@ -24,9 +24,13 @@ fn lang_to_iso(lang: Language) -> String {
   }
 }
 
-const thank_you_message = "
-  Thank you very much for helping us! 
-"
+fn thank_you_message(lang: Language) {
+  case lang {
+    English -> "Thank you very much for helping us!"
+    Croatian -> "Hvala ti puno što nam pomažeš!"
+    French -> "Merci beaucoup pour votre aide!"
+  }
+}
 
 fn get_hx_target(req: Request) -> Option(String) {
   case list.key_find(req.headers, "HX-Target") {
@@ -185,9 +189,9 @@ fn page(items: List(sql.GetItemsRow), lang: Language) {
           language_section(),
         ],
       ),
-      html.p([class("italic")], [html.text(thank_you_message)]),
+      html.p([class("italic")], [html.text(thank_you_message(lang))]),
       html.div([class("")], [html.ul([class("flex flex-col gap-8")], items)]),
-      footer(),
+      footer(lang),
     ]),
   ])
 }
@@ -209,11 +213,17 @@ fn provide_info_button(lang: Language) {
   )
 }
 
-fn footer() {
+fn footer(lang: Language) {
+  let msg = case lang {
+    English -> "For support, please contact "
+    French -> "Besoin d'aide? Contactez "
+    Croatian -> "Trebate pomoć? Kontaktirajte "
+  }
+
   html.div([], [
     html.div([class("mr-auto border-t border-slate-300 mb-4")], []),
     html.p([class("italic")], [
-      html.span([], [html.text("For support, please contact ")]),
+      html.span([], [html.text(msg)]),
       html.a(
         [
           attribute.href("mailto:maxime.filppini@gmail.com"),
