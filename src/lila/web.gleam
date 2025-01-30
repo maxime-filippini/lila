@@ -1,3 +1,4 @@
+import gleam/io
 import lila/utils
 import pog
 import wisp
@@ -27,13 +28,19 @@ pub fn static_directory() -> String {
 }
 
 pub fn connect_to_db(env: Environment) -> pog.Connection {
-  let db_url = case env {
+  let db_url_key = case env {
     Prod -> "PROD_DATABASE_URL"
     Dev -> "DEV_DATABASE_URL"
     Local -> "LOCAL_DATABASE_URL"
   }
 
-  let assert Ok(db_url) = utils.get_env(db_url)
+  io.debug("***DATABASE URL KEY")
+  io.debug(db_url_key)
+
+  let assert Ok(db_url) = utils.get_env(db_url_key)
+  io.debug("***DATABASE URL")
+  io.debug(db_url)
+
   let assert Ok(cfg) = pog.url_config(db_url)
 
   cfg

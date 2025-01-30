@@ -26,7 +26,6 @@ fn lang_to_iso(lang: Language) -> String {
 
 const thank_you_message = "
   Thank you very much for helping us! 
-
 "
 
 fn get_hx_target(req: Request) -> Option(String) {

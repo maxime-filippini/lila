@@ -1,5 +1,6 @@
 import app/router
 import gleam/erlang/process
+import gleam/io
 import lila/cli
 import lila/utils
 import lila/web.{Context, connect_to_db, static_directory}
@@ -12,6 +13,8 @@ pub fn main() {
 
   let assert Ok(env) = utils.get_env("ENVIRONMENT")
   let env = web.string_to_env(env)
+
+  io.debug(env)
 
   let assert Ok(secret_key_base) = utils.get_env("WISP_SECRET_KEY_BASE")
 
