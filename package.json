@@ -8,7 +8,8 @@
   },
   "scripts": {
     "dev": "source .env && gleam run",
-    "tailwind": "npx @tailwindcss/cli -i ./priv/static/input.css -o ./priv/static/output.css --watch"
+    "tailwind": "npx @tailwindcss/cli -i ./priv/static/input.css -o ./priv/static/output.css --watch",
+    "db": "source .env && gleam run -m squirrel"
   },
   "author": "",
   "license": "ISC",

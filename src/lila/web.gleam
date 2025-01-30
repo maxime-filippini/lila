@@ -1,7 +1,21 @@
-import envoy
-import gleam/string
+import lila/utils
 import pog
 import wisp
+
+pub type Environment {
+  Local
+  Dev
+  Prod
+}
+
+pub fn string_to_env(s: String) {
+  case s {
+    "PROD" -> Prod
+    "DEV" -> Dev
+    "LOCAL" -> Local
+    _ -> Local
+  }
+}
 
 pub type Context {
   Context(static_directory: String, db: pog.Connection)
@@ -12,9 +26,15 @@ pub fn static_directory() -> String {
   priv_directory <> "/static"
 }
 
-pub fn db() -> pog.Connection {
-  let assert Ok(db_url) = envoy.get("DATABASE_URL")
-  let assert Ok(cfg) = pog.url_config(string.trim_end(db_url))
+pub fn connect_to_db(env: Environment) -> pog.Connection {
+  let db_url = case env {
+    Prod -> "PROD_DATABASE_URL"
+    Dev -> "DEV_DATABASE_URL"
+    Local -> "LOCAL_DATABASE_URL"
+  }
+
+  let assert Ok(db_url) = utils.get_env(db_url)
+  let assert Ok(cfg) = pog.url_config(db_url)
 
   cfg
   |> pog.pool_size(15)

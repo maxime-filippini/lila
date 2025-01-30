@@ -69,12 +69,16 @@ fn emoji_favicon(emoji: String) -> Element(Nil) {
   html.link([attribute.href(left <> emoji <> right), attribute.rel("icon")])
 }
 
-pub fn h1(text: String) {
-  html.h1([attribute.class("text-3xl font-bold")], [html.text(text)])
+pub fn h1(attrs: List(attribute.Attribute(a)), text: String) {
+  html.h1([attribute.class("text-3xl font-bold"), ..attrs], [html.text(text)])
 }
 
-pub fn h2(text: String) {
-  html.h2([attribute.class("text-xl font-semibold")], [html.text(text)])
+pub fn h2(attrs: List(attribute.Attribute(a)), text: String) {
+  html.h2([attribute.class("text-xl font-semibold"), ..attrs], [html.text(text)])
+}
+
+pub fn p(attrs: List(attribute.Attribute(a)), text: String) {
+  html.p([attribute.class("text-normal"), ..attrs], [html.text(text)])
 }
 
 pub fn button(attrs: List(Attribute(a)), elts: List(Element(a))) -> Element(a) {
@@ -82,6 +86,36 @@ pub fn button(attrs: List(Attribute(a)), elts: List(Element(a))) -> Element(a) {
     [
       attribute.class(
         "bg-violet-300 rounded-lg py-2 px-4 cursor-pointer hover:bg-violet-500 duration-200",
+      ),
+      ..attrs
+    ],
+    elts,
+  )
+}
+
+pub fn amber_button(
+  attrs: List(Attribute(a)),
+  elts: List(Element(a)),
+) -> Element(a) {
+  html.button(
+    [
+      attribute.class(
+        "bg-amber-300 rounded-lg py-2 px-4 cursor-pointer hover:bg-amber-500 duration-200",
+      ),
+      ..attrs
+    ],
+    elts,
+  )
+}
+
+pub fn green_button(
+  attrs: List(Attribute(a)),
+  elts: List(Element(a)),
+) -> Element(a) {
+  html.button(
+    [
+      attribute.class(
+        "bg-green-300 rounded-lg py-2 px-4 cursor-pointer hover:bg-green-500 duration-200",
       ),
       ..attrs
     ],
