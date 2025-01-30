@@ -1,6 +1,7 @@
 import gleam/float
 import gleam/list
 import gleam/option.{type Option, None, Some}
+import lila/attributes
 import lila/elements
 import lila/utils
 import lila/web
@@ -24,16 +25,8 @@ fn lang_to_iso(lang: Language) -> String {
   }
 }
 
-fn thank_you_message(lang: Language) {
-  case lang {
-    English -> "Thank you very much for helping us!"
-    Croatian -> "Hvala ti puno što nam pomažeš!"
-    French -> "Merci beaucoup pour votre aide!"
-  }
-}
-
 fn get_hx_target(req: Request) -> Option(String) {
-  case list.key_find(req.headers, "HX-Target") {
+  case list.key_find(req.headers, "hx-target") {
     Ok(header) -> Some(header)
     _ -> None
   }
@@ -45,10 +38,10 @@ pub fn route_request(req: Request, ctx: web.Context) -> Response {
   let target = get_hx_target(req)
 
   case wisp.path_segments(req) {
-    [] -> index(target, ctx.db, English) |> utils.page_to_response
-    ["en"] -> index(target, ctx.db, English) |> utils.page_to_response
-    ["hr"] -> index(target, ctx.db, Croatian) |> utils.page_to_response
-    ["fr"] -> index(target, ctx.db, French) |> utils.page_to_response
+    [] -> index(target, ctx.db, English)
+    ["en"] -> index(target, ctx.db, English)
+    ["hr"] -> index(target, ctx.db, Croatian)
+    ["fr"] -> index(target, ctx.db, French)
 
     _ -> wisp.not_found()
   }
@@ -59,8 +52,11 @@ fn index(target: Option(String), db: pog.Connection, lang: Language) {
     sql.get_items(db, lang_to_iso(lang))
 
   case target {
-    Some(_) -> page(rows, lang)
-    None -> page(rows, lang)
+    Some("item-list") ->
+      [item_list(rows, lang), thank_you(lang), footer(lang)]
+      |> utils.frags_to_response
+    Some(_) -> page(rows, lang) |> utils.page_to_response
+    None -> page(rows, lang) |> utils.page_to_response
   }
 }
 
@@ -118,65 +114,36 @@ fn single_item(item: sql.GetItemsRow, user_info: Option(Bool), lang: Language) {
   )
 }
 
+fn single_language_button(href: String, file_name: String) {
+  html.a(
+    [
+      attributes.hx_get(href),
+      attributes.hx_target("item-list"),
+      attributes.hx_push_url(),
+      class("cursor-pointer hover:scale-110 duration-500"),
+    ],
+    [
+      html.img([
+        attribute.src("/static/imgs/" <> file_name),
+        class(
+          "rounded-full object-cover w-12 h-12 border-2 border-black box-border",
+        ),
+      ]),
+    ],
+  )
+}
+
 fn language_section() {
   html.div([class("flex gap-4")], [
-    html.a(
-      [
-        attribute.href("/hr"),
-        class("cursor-pointer hover:scale-110 duration-500"),
-      ],
-      [
-        html.img([
-          attribute.src("/static/imgs/Flag_of_Croatia.svg"),
-          class(
-            "rounded-full object-cover w-12 h-12 border-2 border-black box-border",
-          ),
-        ]),
-      ],
-    ),
-    html.a(
-      [
-        attribute.href("/fr"),
-        class("cursor-pointer hover:scale-110 duration-500"),
-      ],
-      [
-        html.img([
-          attribute.src("/static/imgs/Flag_of_France.svg"),
-          class(
-            "object-cover w-12 h-12 rounded-full border-2 border-black box-border",
-          ),
-        ]),
-      ],
-    ),
-    html.a(
-      [
-        attribute.href("/en"),
-        class("cursor-pointer hover:scale-110 duration-500"),
-      ],
-      [
-        html.img([
-          attribute.src("/static/imgs/Flag_of_the_United_Kingdom.svg"),
-          class(
-            "object-cover w-12 h-12 rounded-full border-2 border-black box-border",
-          ),
-        ]),
-      ],
-    ),
+    single_language_button("/hr", "Flag_of_Croatia.svg"),
+    single_language_button("/fr", "Flag_of_France.svg"),
+    single_language_button("/en", "Flag_of_the_United_Kingdom.svg"),
   ])
 }
 
 fn page(items: List(sql.GetItemsRow), lang: Language) {
-  let items =
-    items
-    |> list.append(items)
-    |> list.append(items)
-    |> list.append(items)
-    |> list.append(items)
-    |> list.append(items)
-    |> list.map(single_item(_, Some(True), lang))
-
   html.html([attr("lang", "en")], [
-    elements.head("Baby names"),
+    elements.head("Lila's baby list"),
     html.body([class("p-8 max-w-5xl mx-auto flex flex-col gap-8")], [
       html.div(
         [
@@ -189,11 +156,37 @@ fn page(items: List(sql.GetItemsRow), lang: Language) {
           language_section(),
         ],
       ),
-      html.p([class("italic")], [html.text(thank_you_message(lang))]),
-      html.div([class("")], [html.ul([class("flex flex-col gap-8")], items)]),
+      thank_you(lang),
+      html.div([class(""), attribute.id("item-list")], [item_list(items, lang)]),
       footer(lang),
     ]),
   ])
+}
+
+fn thank_you(lang: Language) {
+  let msg = case lang {
+    English -> "Thank you very much for helping us!"
+    Croatian -> "Hvala ti puno što nam pomažeš!"
+    French -> "Merci beaucoup pour votre aide!"
+  }
+
+  html.p(
+    [class("italic"), attribute.id("thank-you"), attributes.hx_swap_oob()],
+    [html.text(msg)],
+  )
+}
+
+fn item_list(items: List(sql.GetItemsRow), lang: Language) {
+  let items =
+    items
+    |> list.append(items)
+    |> list.append(items)
+    |> list.append(items)
+    |> list.append(items)
+    |> list.append(items)
+    |> list.map(single_item(_, Some(True), lang))
+
+  html.ul([class("flex flex-col gap-8")], items)
 }
 
 fn provide_info_button(lang: Language) {
@@ -220,7 +213,7 @@ fn footer(lang: Language) {
     Croatian -> "Trebate pomoć? Kontaktirajte "
   }
 
-  html.div([], [
+  html.div([attribute.id("footer"), attributes.hx_swap_oob()], [
     html.div([class("mr-auto border-t border-slate-300 mb-4")], []),
     html.p([class("italic")], [
       html.span([], [html.text(msg)]),
