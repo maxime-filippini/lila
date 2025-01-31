@@ -1,4 +1,3 @@
-import gleam/io
 import lila/utils
 import pog
 import wisp
@@ -34,13 +33,7 @@ pub fn connect_to_db(env: Environment) -> pog.Connection {
     Local -> "LOCAL_DATABASE_URL"
   }
 
-  io.debug("***DATABASE URL KEY")
-  io.debug(db_url_key)
-
   let assert Ok(db_url) = utils.get_env(db_url_key)
-  io.debug("***DATABASE URL")
-  io.debug(db_url)
-
   let assert Ok(cfg) = pog.url_config(db_url)
 
   cfg

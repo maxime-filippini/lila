@@ -35,14 +35,14 @@ pub fn text(s: String) -> Element(Nil) {
 
 pub fn stylesheet(file_name: String) -> Element(Nil) {
   html.link([
-    attribute.href("static/" <> file_name),
+    attribute.href("/static/" <> file_name),
     attribute.rel("stylesheet"),
   ])
 }
 
 fn htmx() -> Element(Nil) {
   html.script(
-    [attribute.type_("text/javascript"), attribute.src("static/htmx.min.js")],
+    [attribute.type_("text/javascript"), attribute.src("/static/htmx.min.js")],
     "",
   )
 }
@@ -101,6 +101,21 @@ pub fn amber_button(
     [
       attribute.class(
         "bg-amber-300 rounded-lg py-2 px-4 cursor-pointer hover:bg-amber-500 duration-200",
+      ),
+      ..attrs
+    ],
+    elts,
+  )
+}
+
+pub fn red_button(
+  attrs: List(Attribute(a)),
+  elts: List(Element(a)),
+) -> Element(a) {
+  html.button(
+    [
+      attribute.class(
+        "bg-red-300 rounded-lg py-2 px-4 cursor-pointer hover:bg-red-500 duration-200",
       ),
       ..attrs
     ],
