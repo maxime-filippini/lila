@@ -85,7 +85,7 @@ pub fn we_need_your_info(lang: Language) -> String {
   case lang {
     French -> "Nous avons besoin de votre nom avant de continuer"
     Croatian -> "Pogledajte opcije"
-    English -> "Provide your info before continuing"
+    English -> "Please provide your info before continuing"
   }
 }
 
@@ -94,6 +94,14 @@ pub fn i_need_more_info_on_item(lang: Language) -> String {
     English -> "I need information for item "
     Croatian -> "Trebam informacije o "
     French -> "J'ai besoin de plus amples informations sur "
+  }
+}
+
+pub fn one_person_offered(lang: Language) -> String {
+  case lang {
+    Croatian -> "Netko je ponudio kupnju ovog artikla."
+    English -> "Someone offered to purchase this item."
+    French -> "Quelqu'un s'est proposé de participer pour cet article."
   }
 }
 
