@@ -125,10 +125,14 @@ pub fn people_in_waitlist(lang: Language, multiple multiple: Bool) -> String {
 pub fn position_in_waitlist(lang: Language, n: Int) -> String {
   let n_str = int.to_string(n)
 
-  case lang {
-    Croatian -> "Vi ste br. " <> n_str
-    English -> "You are #" <> n_str
-    French -> "Vous êtes n°" <> n_str
+  case n, lang {
+    0, Croatian -> "To si ti! 🥳"
+    0, English -> "It is you! 🥳"
+    0, French -> "C'est vous! 🥳"
+
+    _, Croatian -> "Vi ste br. " <> n_str
+    _, English -> "You are #" <> n_str
+    _, French -> "Vous êtes n°" <> n_str
   }
 }
 
