@@ -1,116 +1,145 @@
-import gleam/float
+import app/auth_page
+import app/crud
+import app/list_page
 import gleam/http.{Get, Post}
 import gleam/io
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/result
 import gleam/string
-import lila/attributes
-import lila/elements
-import lila/language.{type Language, Croatian, English, French}
+import gleam/uri
+import lila/language.{type Language}
 import lila/user.{type User}
 import lila/utils
 import lila/web
-import lustre/attribute.{attribute as attr, class}
-import lustre/element.{type Element}
-import lustre/element/html
 import pog
 import sql
 import wisp.{type Request, type Response}
 import youid/uuid
 
-const id_page_body = "page-body"
+// Route handlers -----------------------------------------
 
 pub fn route_request(req: Request, ctx: web.Context) -> Response {
   use req <- web.middleware(req, ctx)
+  use req, query_params <- web.with_query_params(req)
+  use req, maybe_user <- web.with_user(req)
 
-  let target = utils.get_hx_target(req)
+  case req.method, wisp.path_segments(req), query_params {
+    // Index page
+    Get, [], [#("lang", lang)] -> handle_index_route(req, ctx, lang)
+    Get, [], _ -> wisp.redirect("/?lang=en")
 
-  let user = case wisp.get_cookie(req, "user", wisp.Signed) {
-    Ok(v) -> {
-      case user.parse(v) {
-        Ok(w) -> Some(w)
-        _ -> None
-      }
-    }
-    _ -> None
-  }
-
-  case req.method, wisp.path_segments(req) {
-    Get, [] -> wisp.redirect("/en")
-
-    Get, ["en"] -> index(target, ctx.db, English, user)
-    Get, ["fr"] -> index(target, ctx.db, French, user)
-    Get, ["hr"] -> index(target, ctx.db, Croatian, user)
-
-    Get, [lang, "auth"] -> {
-      case language.from_iso(lang) {
-        Ok(v) -> auth_route(req, target, v, ["auth"])
-        Error(_) -> wisp.not_found()
-      }
+    // Auth
+    Get, ["auth"], [#("lang", lang)] -> handle_auth_route(req, lang)
+    Get, ["auth"], _ -> wisp.redirect("/auth?lang=en")
+    Post, ["auth"], _ -> {
+      store_auth(req, ctx.db, query_params)
     }
 
-    // TODO - Find a way to handle this state better (e.g. shift from URL to form submission)
-    Post, [lang, "interested", id] -> {
-      let assert Ok(lang) = language.from_iso(lang)
-      handle_action(req, ctx.db, id, user, lang, sql.Interested, False)
+    // Item
+    _, ["item", ..segments], _ -> {
+      handle_item_routes(req, ctx, segments:, query_params:, maybe_user:)
     }
 
-    Post, [lang, "not-interested", id] -> {
-      let assert Ok(lang) = language.from_iso(lang)
-      handle_action(req, ctx.db, id, user, lang, sql.NoLongerInterested, True)
-    }
-
-    Post, [lang, "will-buy", id, "interested"] -> {
-      let assert Ok(lang) = language.from_iso(lang)
-      handle_action(req, ctx.db, id, user, lang, sql.Reserve, True)
-    }
-    Post, [lang, "will-buy", id] -> {
-      let assert Ok(lang) = language.from_iso(lang)
-      handle_action(req, ctx.db, id, user, lang, sql.Reserve, False)
-    }
-
-    Post, [lang, "need-info", id] -> {
-      let assert Ok(lang) = language.from_iso(lang)
-      handle_action(req, ctx.db, id, user, lang, sql.AskForInfo, False)
-    }
-
-    Post, [lang, "need-info", id, "interested"] -> {
-      let assert Ok(lang) = language.from_iso(lang)
-      handle_action(req, ctx.db, id, user, lang, sql.AskForInfo, True)
-    }
-
-    Post, [v, "auth"] -> {
-      let assert Ok(lang) = language.from_iso(v)
-      store_auth(req, ctx.db, lang)
-    }
-    _, _ -> wisp.not_found()
+    _, _, _ -> wisp.not_found()
   }
 }
 
-fn insert_user_if_not_in_db(
+fn handle_item_routes(
+  req: Request,
+  ctx: web.Context,
+  segments segments: List(String),
+  query_params query_params: List(#(String, String)),
+  maybe_user maybe_user: Option(User),
+) -> Response {
+  case req.method, segments, query_params {
+    Post, [item_id, "add-to-wait-list"], [#("lang", lang_iso)] -> {
+      use req, lang <- web.validate_lang(req, lang_iso)
+      handle_add_to_waitlist(req:, ctx:, item_id:, maybe_user:, lang:)
+    }
+
+    Post, [item_id, "remove-from-wait-list"], [#("lang", lang_iso)] -> {
+      use req, lang <- web.validate_lang(req, lang_iso)
+      handle_remove_from_waitlist(req:, ctx:, item_id:, maybe_user:, lang:)
+    }
+
+    Get, [item_id, "user-actions"], [#("lang", lang_iso)] -> {
+      handle_user_actions(req, ctx, item_id, lang_iso)
+    }
+    _, _, _ -> wisp.not_found()
+  }
+}
+
+fn handle_single_item(req: Request) -> Response {
+  todo
+}
+
+fn handle_user_actions(
+  req: Request,
+  ctx: web.Context,
+  item_id: String,
+  lang_iso: String,
+) -> Response {
+  use req, user_info <- web.with_user(req)
+  use req, lang <- web.validate_lang(req, lang_iso)
+  use req, item <- web.get_item_info(req, ctx, item_id, lang)
+
+  let assert Ok(pog.Returned(_count, items_waitlists_rows)) =
+    sql.get_items_waitlists(ctx.db)
+
+  let waitlist =
+    items_waitlists_rows |> list.filter(fn(wl) { wl.item_id == item.id })
+  let n_users_in_waitlist = waitlist |> list.length
+
+  let user_pos_in_waitlist = {
+    case user_info {
+      None -> None
+      Some(u) -> {
+        waitlist
+        |> utils.find_index(fn(item) { item.user_id == u.id })
+      }
+    }
+  }
+  list_page.user_actions(
+    item_id:,
+    item_name: item.name,
+    user_info:,
+    lang:,
+    n_users_in_waitlist:,
+    user_pos_in_waitlist:,
+  )
+  |> utils.frag_to_response
+}
+
+fn handle_auth_route(req: Request, lang_iso: String) -> Response {
+  use req, lang <- web.validate_lang(req, lang_iso)
+  auth_page.page(req.path, lang) |> utils.page_to_response
+}
+
+fn handle_index_route(
+  req: Request,
+  ctx: web.Context,
+  lang_iso: String,
+) -> Response {
+  use req, lang <- web.validate_lang(req, lang_iso)
+  use req, _target <- web.with_hx_target(req)
+  use req, maybe_user <- web.with_user(req)
+
+  let assert Ok(pog.Returned(_count, items_rows)) =
+    sql.get_items_with_info(ctx.db, lang_iso)
+
+  let assert Ok(pog.Returned(_count, items_waitlists_rows)) =
+    sql.get_items_waitlists(ctx.db)
+
+  list_page.page(req.path, lang, maybe_user, items_rows:, items_waitlists_rows:)
+  |> utils.page_to_response
+}
+
+fn store_auth(
   req: Request,
   db: pog.Connection,
-  name: String,
-  email: String,
-) -> User {
-  let assert Ok(pog.Returned(_count, rows)) = sql.get_user_by_email(db, email)
-
-  case rows {
-    [] -> {
-      let uuid = uuid.v4_string()
-      let assert Ok(pog.Returned(_count, _rows)) =
-        sql.insert_user(db, uuid, name, email)
-
-      insert_user_if_not_in_db(req, db, name, email)
-      // Try again
-    }
-    [v] -> user.User(v.id, v.name, v.email)
-    _ -> panic
-  }
-}
-
-fn store_auth(req: Request, db: pog.Connection, lang: Language) -> Response {
+  query_params: List(#(String, String)),
+) -> Response {
   use formdata <- wisp.require_form(req)
   io.debug(formdata.values)
 
@@ -123,10 +152,14 @@ fn store_auth(req: Request, db: pog.Connection, lang: Language) -> Response {
 
   case result {
     Ok(#(name, email)) -> {
-      let user = insert_user_if_not_in_db(req, db, name, email)
+      let user = crud.insert_user_if_not_in_db(req, db, name, email)
       let cookie = string.join([user.id, user.name, email], ";")
+      let qry_params = case uri.query_to_string(query_params) {
+        "" -> ""
+        v -> "?" <> v
+      }
 
-      wisp.redirect("/" <> language.to_iso(lang))
+      wisp.redirect("/" <> qry_params)
       |> wisp.set_cookie(req, "user", cookie, wisp.Signed, 24 * 60 * 60 * 180)
     }
     Error(_) -> {
@@ -135,468 +168,38 @@ fn store_auth(req: Request, db: pog.Connection, lang: Language) -> Response {
   }
 }
 
-// ---------------------------------------------------------------
-
-/// Render the index page
-fn index(
-  target: Option(String),
-  db: pog.Connection,
-  lang: Language,
-  user: Option(User),
-) {
-  let assert Ok(pog.Returned(_count, rows)) =
-    sql.get_items_with_status(db, language.to_iso(lang))
-
-  let user_id = case user {
-    Some(u) -> u.id
-    None -> "_"
-  }
-
-  let assert Ok(pog.Returned(_count, interested_rows)) =
-    sql.get_items_user_is_interested_in(db, user_id)
-
-  let items_interested = interested_rows |> list.map(fn(item) { item.item_id })
-
-  case target {
-    Some("page-body") ->
-      [
-        thank_you(lang),
-        item_list(rows, lang, user, items_interested),
-        footer(lang),
-      ]
-      |> utils.frags_to_response
-    Some(_) ->
-      page(rows, lang, user, [], items_interested) |> utils.page_to_response
-    None ->
-      page(rows, lang, user, [], items_interested) |> utils.page_to_response
-  }
-}
-
-fn single_item(
-  item: sql.GetItemsWithStatusRow,
-  user_info: Option(User),
-  lang: Language,
-  user_interested: Bool,
-) {
-  let price = item.average_price |> float.to_precision(2) |> float.to_string
-
-  let price = case string.split_once(price, ".") {
-    Ok(#(int, rem)) -> {
-      case string.length(rem) {
-        1 -> string.join([int, rem <> "0"], ".")
-        _ -> price
-      }
-    }
-    _ -> price <> ".00"
-  }
-
-  html.li(
-    [
-      class(
-        "rounded-lg w-full p-4 flex flex-col md:flex-row gap-4 mx-auto bg-violet-50",
-      ),
-    ],
-    [
-      html.div(
-        [class("md:w-1/6 flex items-center justify-center rounded-lg bg-white")],
-        [
-          html.img([
-            attribute.src("/static/imgs/maxicosi_iora_codod.jpg"),
-            class("object-contain rounded-full max-h-32 flex-none"),
-          ]),
-        ],
-      ),
-      html.div(
-        [class("md:w-4/6 p-4 flex flex-col gap-4 items-start justify-center")],
-        [
-          html.div([class("flex w-full")], [
-            elements.h2([class("mr-auto")], item.name),
-            elements.h2([], price <> "€"),
-          ]),
-          elements.p([], item.description),
-          case item.link {
-            Some(link) ->
-              html.a(
-                [
-                  attribute.href(link),
-                  class(
-                    "text-violet-300 hover:underline duration-500 underline-offset-4 italic",
-                  ),
-                ],
-                [html.text(link)],
-              )
-            None -> html.div([], [])
-          },
-        ],
-      ),
-      user_actions(item.id, user_info, lang, user_interested),
-    ],
-  )
-}
-
-fn user_actions(
-  item_id: String,
-  user_info: Option(User),
-  lang: Language,
-  user_interested: Bool,
-) {
-  let #(interested, not_interested, will_buy, need_info) = case lang {
-    English -> #(
-      "Interested",
-      "No longer interested",
-      "Will buy",
-      "Need more information",
-    )
-    Croatian -> #(
-      "Zainteresiran(a)",
-      "Nisam zainteresiran(a)",
-      "Kupit ću",
-      "Treba mi više informacija",
-    )
-    French -> #(
-      "Intéressé(e)",
-      "Plus intéressé(e)",
-      "Va acheter",
-      "Besoin d'informations",
-    )
-  }
-
-  let iso = language.to_iso(lang)
-  let interested_url = case user_interested {
-    True -> "interested"
-    False -> ""
-  }
-
-  let interested_action = case user_interested {
-    True -> {
-      elements.red_button(
-        [
-          class("flex-1 md:w-full"),
-          attributes.hx_post("/" <> iso <> "/not-interested/" <> item_id),
-          attributes.hx_target("actions-" <> item_id),
-        ],
-        [html.text(not_interested)],
-      )
-    }
-    False -> {
-      elements.amber_button(
-        [
-          class("flex-1 md:w-full"),
-          attributes.hx_post("/" <> iso <> "/interested/" <> item_id),
-          attributes.hx_target("actions-" <> item_id),
-        ],
-        [html.text(interested)],
-      )
-    }
-  }
-
-  html.div(
-    [
-      class(
-        "md:w-2/6 p-4 flex md:flex-col flex-wrap items-center justify-center gap-4",
-      ),
-      attribute.id("actions-" <> item_id),
-      attributes.hx_swap(attributes.OuterHTML),
-    ],
-    case user_info {
-      Some(_) -> [
-        interested_action,
-        elements.green_button(
-          [
-            class("flex-1 md:w-full"),
-            attributes.hx_post(
-              "/" <> iso <> "/will-buy/" <> item_id <> "/" <> interested_url,
-            ),
-            attributes.hx_target("actions-" <> item_id),
-          ],
-          [html.text(will_buy)],
-        ),
-        elements.button(
-          [
-            class("flex-1 md:w-full"),
-            attributes.hx_post(
-              "/" <> iso <> "/need-info/" <> item_id <> "/" <> interested_url,
-            ),
-            attributes.hx_target("actions-" <> item_id),
-          ],
-          [html.text(need_info)],
-        ),
-      ]
-      _ -> [provide_info_button(lang)]
-    },
-  )
-}
-
-fn single_language_button(href: String, file_name: String) {
-  html.a(
-    [
-      attributes.hx_get(href),
-      attributes.hx_target(id_page_body),
-      attributes.hx_replace_url(),
-      class("cursor-pointer hover:scale-110 duration-500"),
-    ],
-    [
-      html.img([
-        attribute.src("/static/imgs/" <> file_name),
-        class(
-          "rounded-full object-cover w-12 h-12 border-2 border-black box-border",
-        ),
-      ]),
-    ],
-  )
-}
-
-fn language_section(endpoint: String) {
-  html.div([class("flex gap-4")], [
-    single_language_button("/hr/" <> endpoint, "Flag_of_Croatia.svg"),
-    single_language_button("/fr/" <> endpoint, "Flag_of_France.svg"),
-    single_language_button("/en/" <> endpoint, "Flag_of_the_United_Kingdom.svg"),
-  ])
-}
-
-fn header(lang: Language, endpoint: String) {
-  html.div(
-    [
-      attribute.id("header"),
-      attributes.hx_swap_oob(),
-      class(
-        "flex sm:h-8 sm:flex-row flex-col items-center justify-center flex-1 gap-4",
-      ),
-    ],
-    [
-      html.button(
-        [
-          class(
-            "px-8 py-4 bg-violet-50 rounded-xl hover:bg-violet-100 duration-500 sm:mr-auto",
-          ),
-          attributes.hx_get("/" <> language.to_iso(lang)),
-          attributes.hx_target(id_page_body),
-          attributes.hx_push_url(),
-          class("cursor-pointer"),
-        ],
-        [
-          html.h1([class("text-3xl font-bold")], [
-            html.text("👨‍👩‍👧 Lila's baby list"),
-          ]),
-        ],
-      ),
-      language_section(endpoint),
-    ],
-  )
-}
-
-fn layout(lang: Language, body: List(Element(Nil)), path_segments: List(String)) {
-  let endpoint = path_segments |> string.join("/")
-
-  html.html([attr("lang", "en")], [
-    elements.head("Lila's baby list"),
-    html.body([class("p-8 max-w-5xl mx-auto flex flex-col gap-8")], [
-      header(lang, endpoint),
-      html.div([class("flex flex-col gap-8"), attribute.id(id_page_body)], body),
-      footer(lang),
-    ]),
-  ])
-}
-
-fn page(
-  items: List(sql.GetItemsWithStatusRow),
-  lang: Language,
-  user: Option(User),
-  path_segments: List(String),
-  items_interested: List(String),
-) {
-  layout(
-    lang,
-    [
-      thank_you(lang),
-      html.div([class("")], [item_list(items, lang, user, items_interested)]),
-    ],
-    path_segments,
-  )
-}
-
-fn thank_you(lang: Language) {
-  let msg = case lang {
-    English -> "Thank you very much for helping us!"
-    Croatian -> "Hvala ti puno što nam pomažeš!"
-    French -> "Merci beaucoup pour votre aide!"
-  }
-
-  html.p([class("italic"), attribute.id("thank-you")], [html.text(msg)])
-}
-
-fn item_list(
-  items: List(sql.GetItemsWithStatusRow),
-  lang: Language,
-  user: Option(User),
-  items_interested: List(String),
-) {
-  let items =
-    items
-    |> list.map(fn(item) {
-      let user_interested = items_interested |> list.contains(item.id)
-      single_item(item, user, lang, user_interested)
-    })
-
-  html.ul([class("flex flex-col gap-8")], items)
-}
-
-fn provide_info_button(lang: Language) {
-  let text = case lang {
-    French -> "Nous avons besoin de votre nom avant de continuer"
-    Croatian -> "Pogledajte opcije"
-    English -> "Provide your info before continuing"
-  }
-
-  html.button(
-    [
-      class(
-        "bg-slate-300 rounded-lg py-2 px-4 cursor-pointer hover:bg-slate-500 duration-200 hover:text-white",
-      ),
-      attributes.hx_get("/" <> language.to_iso(lang) <> "/auth"),
-      attributes.hx_target(id_page_body),
-      attributes.hx_push_url(),
-    ],
-    [html.text(text)],
-  )
-}
-
-fn footer(lang: Language) {
-  let msg = case lang {
-    English -> "For support, please contact "
-    French -> "Besoin d'aide? Contactez "
-    Croatian -> "Trebate pomoć? Kontaktirajte "
-  }
-
-  html.div([attribute.id("footer"), attributes.hx_swap_oob()], [
-    html.div([class("mr-auto border-t border-slate-300 mb-4")], []),
-    html.p([class("italic")], [
-      html.span([], [html.text(msg)]),
-      html.a(
-        [
-          attribute.href("mailto:maxime.filppini@gmail.com"),
-          class(
-            "text-violet-300 hover:underline duration-500 underline-offset-4",
-          ),
-        ],
-        [html.text("maxime.filppini@gmail.com")],
-      ),
-    ]),
-  ])
-}
-
-fn form(lang: Language) {
-  let #(name, email, confirm) = case lang {
-    English -> #("Name", "Email address", "Confirm")
-    French -> #("Nom", "Adresse email", "Confirmer")
-    Croatian -> #("Ime", "Email adresa", "Potvrdi")
-  }
-
-  html.form(
-    [
-      attribute.class(""),
-      attribute.method("post"),
-      attribute.action("/" <> language.to_iso(lang) <> "/auth"),
-    ],
-    [
-      html.div([attribute.class("mb-4")], [
-        html.label(
-          [
-            attribute.for("name"),
-            attribute.class("block text-gray-700 text-sm font-bold mb-2"),
-          ],
-          [html.text(name)],
-        ),
-        html.input([
-          attribute.placeholder(name),
-          attribute.type_("text"),
-          attribute.name("name"),
-          attribute.id("name"),
-          attribute.class(
-            "shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline",
-          ),
-        ]),
-      ]),
-      html.div([attribute.class("mb-6")], [
-        html.label(
-          [
-            attribute.for("email"),
-            attribute.class("block text-gray-700 text-sm font-bold mb-2"),
-          ],
-          [html.text(email)],
-        ),
-        html.input([
-          attribute.placeholder(
-            name |> string.lowercase |> string.replace(" ", "_")
-            <> "@example.com",
-          ),
-          attribute.type_("email"),
-          attribute.name("email"),
-          attribute.id("email"),
-          attribute.class(
-            "shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 mb-3 leading-tight focus:outline-none focus:shadow-outline",
-          ),
-        ]),
-      ]),
-      html.input([
-        class(
-          "w-full bg-violet-300 rounded-lg py-2 px-4 cursor-pointer hover:bg-violet-500 duration-200",
-        ),
-        attribute.type_("submit"),
-        attribute.value(confirm),
-      ]),
-    ],
-  )
-}
-
-fn auth_route(
-  req: Request,
-  target: Option(String),
-  lang: Language,
-  path_segments: List(String),
+pub fn handle_add_to_waitlist(
+  req req: Request,
+  ctx ctx: web.Context,
+  item_id item_id: String,
+  maybe_user maybe_user: Option(User),
+  lang lang: Language,
 ) -> Response {
-  let form = form(lang)
-  let endpoint = "/" <> path_segments |> string.join("/")
+  use req, user <- web.require_user(req, maybe_user)
+  use _req, _item_info <- web.get_item_info(req, ctx, item_id, lang)
 
-  let user = wisp.get_cookie(req, "user", wisp.Signed)
+  let assert Ok(pog.Returned(_count, _rows)) =
+    sql.insert_to_waitlist(ctx.db, item_id, user.id)
 
-  case user {
-    Ok(_) -> wisp.redirect("/" <> language.to_iso(lang))
-    _ -> {
-      case target {
-        Some("page-body") ->
-          [header(lang, endpoint), form, footer(lang)]
-          |> utils.frags_to_response
-        Some(_) -> layout(lang, [form], path_segments) |> utils.page_to_response
-        None -> layout(lang, [form], path_segments) |> utils.page_to_response
-      }
-    }
-  }
+  wisp.redirect(
+    "/item/" <> item_id <> "/user-actions?lang=" <> language.to_iso(lang),
+  )
 }
 
-fn handle_action(
-  _req: Request,
-  db: pog.Connection,
-  id: String,
-  maybe_user: Option(User),
-  lang: Language,
-  action: sql.ItemAction,
-  interested: Bool,
+// TODO - Move derived calculations in request handlers instead of view functions
+
+pub fn handle_remove_from_waitlist(
+  req req: Request,
+  ctx ctx: web.Context,
+  item_id item_id: String,
+  maybe_user maybe_user: Option(User),
+  lang lang: Language,
 ) -> Response {
-  case maybe_user {
-    None -> wisp.response(401)
-    Some(u) -> {
-      let assert Ok(pog.Returned(_count, _rows)) =
-        sql.insert_action(db, uuid.v4_string(), id, action, u.id)
+  use _req, user <- web.require_user(req, maybe_user)
+  let assert Ok(pog.Returned(_count, _rows)) =
+    sql.remove_user_from_waitlist(ctx.db, user.id, item_id)
 
-      let interested = case action {
-        sql.Interested -> True
-        sql.NoLongerInterested -> False
-        _ -> interested
-      }
-
-      user_actions(id, Some(u), lang, interested)
-      |> utils.frag_to_response
-    }
-  }
+  wisp.redirect(
+    "/item/" <> item_id <> "/user-actions?lang=" <> language.to_iso(lang),
+  )
 }

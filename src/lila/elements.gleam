@@ -85,7 +85,7 @@ pub fn button(attrs: List(Attribute(a)), elts: List(Element(a))) -> Element(a) {
   html.button(
     [
       attribute.class(
-        "bg-violet-300 rounded-lg py-2 px-4 cursor-pointer hover:bg-violet-500 duration-200",
+        "bg-violet-300 rounded-lg cursor-pointer hover:bg-violet-500 duration-200",
       ),
       ..attrs
     ],

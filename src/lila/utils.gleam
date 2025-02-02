@@ -1,6 +1,6 @@
 import envoy
 import gleam/list
-import gleam/option.{None, Some}
+import gleam/option.{type Option, None, Some}
 import gleam/result
 import gleam/string
 import gleam/string_tree
@@ -33,9 +33,21 @@ pub fn get_env(key: String) {
   envoy.get(key) |> result.map(string.trim_end)
 }
 
-pub fn get_hx_target(req: Request) -> option.Option(String) {
+pub fn get_hx_target(req: Request) -> Option(String) {
   case list.key_find(req.headers, "hx-target") {
     Ok(header) -> Some(header)
     _ -> None
+  }
+}
+
+pub fn find_index(lst: List(a), with: fn(a) -> Bool) -> Option(Int) {
+  let res =
+    lst
+    |> list.index_map(fn(x, i) { #(i, x) })
+    |> list.find(fn(x) { with(x.1) })
+
+  case res {
+    Error(_) -> None
+    Ok(#(idx, _)) -> Some(idx)
   }
 }
