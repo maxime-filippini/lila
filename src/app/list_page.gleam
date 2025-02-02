@@ -161,12 +161,13 @@ pub fn user_actions(
     2 -> "1 " <> lang |> translations.people_in_waitlist(multiple: False)
     n ->
       int.to_string(n - 1)
+      <> " "
       <> lang |> translations.people_in_waitlist(multiple: True)
   }
 
   let my_spot_text = case pos_wait {
     None -> ""
-    Some(v) -> " (" <> translations.position_in_waitlist(lang, v + 1) <> ")"
+    Some(v) -> " (" <> translations.position_in_waitlist(lang, v) <> ")"
   }
 
   let waitlist_text = waitlist_text <> my_spot_text
