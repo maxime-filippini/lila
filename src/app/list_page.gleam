@@ -158,9 +158,9 @@ pub fn user_actions(
   let waitlist_text = case n_wait {
     0 -> ""
     1 -> lang |> translations.one_person_offered
-    2 -> "2 " <> lang |> translations.people_in_waitlist(multiple: False)
+    2 -> "1 " <> lang |> translations.people_in_waitlist(multiple: False)
     n ->
-      int.to_string(n)
+      int.to_string(n - 1)
       <> lang |> translations.people_in_waitlist(multiple: True)
   }
 
