@@ -88,10 +88,16 @@ fn single_item(
     }
   }
 
+  let color = case item.is_future {
+    True -> "bg-amber-50"
+    False -> "bg-violet-50"
+  }
+
   html.li(
     [
       class(
-        "rounded-lg w-full p-4 flex flex-col md:flex-row gap-4 mx-auto bg-violet-50",
+        "rounded-lg w-full p-4 flex flex-col md:flex-row gap-4 mx-auto "
+        <> color,
       ),
     ],
     [

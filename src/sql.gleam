@@ -124,6 +124,7 @@ pub type GetItemsRow {
     link: Option(String),
     average_price: Float,
     img: String,
+    is_future: Bool,
     item_id: String,
     lang: String,
     name: String,
@@ -144,17 +145,19 @@ pub fn get_items(db, arg_1) {
     use link <- decode.field(1, decode.optional(decode.string))
     use average_price <- decode.field(2, decode.float)
     use img <- decode.field(3, decode.string)
-    use item_id <- decode.field(4, decode.string)
-    use lang <- decode.field(5, decode.string)
-    use name <- decode.field(6, decode.string)
-    use description <- decode.field(7, decode.string)
-    use comment <- decode.field(8, decode.optional(decode.string))
+    use is_future <- decode.field(4, decode.bool)
+    use item_id <- decode.field(5, decode.string)
+    use lang <- decode.field(6, decode.string)
+    use name <- decode.field(7, decode.string)
+    use description <- decode.field(8, decode.string)
+    use comment <- decode.field(9, decode.optional(decode.string))
     decode.success(
       GetItemsRow(
         id:,
         link:,
         average_price:,
         img:,
+        is_future:,
         item_id:,
         lang:,
         name:,
@@ -318,6 +321,7 @@ pub type GetSingleItemWithInfoRow {
     link: Option(String),
     average_price: Float,
     img: String,
+    is_future: Bool,
     item_id: String,
     lang: String,
     name: String,
@@ -338,17 +342,19 @@ pub fn get_single_item_with_info(db, arg_1, arg_2) {
     use link <- decode.field(1, decode.optional(decode.string))
     use average_price <- decode.field(2, decode.float)
     use img <- decode.field(3, decode.string)
-    use item_id <- decode.field(4, decode.string)
-    use lang <- decode.field(5, decode.string)
-    use name <- decode.field(6, decode.string)
-    use description <- decode.field(7, decode.string)
-    use comment <- decode.field(8, decode.optional(decode.string))
+    use is_future <- decode.field(4, decode.bool)
+    use item_id <- decode.field(5, decode.string)
+    use lang <- decode.field(6, decode.string)
+    use name <- decode.field(7, decode.string)
+    use description <- decode.field(8, decode.string)
+    use comment <- decode.field(9, decode.optional(decode.string))
     decode.success(
       GetSingleItemWithInfoRow(
         id:,
         link:,
         average_price:,
         img:,
+        is_future:,
         item_id:,
         lang:,
         name:,
@@ -386,6 +392,7 @@ pub type GetItemsWithInfoRow {
     link: Option(String),
     average_price: Float,
     img: String,
+    is_future: Bool,
     item_id: String,
     lang: String,
     name: String,
@@ -406,17 +413,19 @@ pub fn get_items_with_info(db, arg_1) {
     use link <- decode.field(1, decode.optional(decode.string))
     use average_price <- decode.field(2, decode.float)
     use img <- decode.field(3, decode.string)
-    use item_id <- decode.field(4, decode.string)
-    use lang <- decode.field(5, decode.string)
-    use name <- decode.field(6, decode.string)
-    use description <- decode.field(7, decode.string)
-    use comment <- decode.field(8, decode.optional(decode.string))
+    use is_future <- decode.field(4, decode.bool)
+    use item_id <- decode.field(5, decode.string)
+    use lang <- decode.field(6, decode.string)
+    use name <- decode.field(7, decode.string)
+    use description <- decode.field(8, decode.string)
+    use comment <- decode.field(9, decode.optional(decode.string))
     decode.success(
       GetItemsWithInfoRow(
         id:,
         link:,
         average_price:,
         img:,
+        is_future:,
         item_id:,
         lang:,
         name:,
