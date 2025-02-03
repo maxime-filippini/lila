@@ -94,12 +94,12 @@ pub fn footer(lang: Language) -> Element(Nil) {
       html.span([], [html.text(translations.if_problem_contact_me(lang))]),
       html.a(
         [
-          attribute.href("mailto:maxime.filppini@gmail.com"),
+          attribute.href("mailto:maxime.filippini@gmail.com"),
           class(
             "text-violet-300 hover:underline duration-500 underline-offset-4",
           ),
         ],
-        [html.text("maxime.filppini@gmail.com")],
+        [html.text("maxime.filippini@gmail.com")],
       ),
     ]),
   ])
