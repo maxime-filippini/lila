@@ -84,7 +84,7 @@ pub fn confirm(lang: Language) -> String {
 pub fn we_need_your_info(lang: Language) -> String {
   case lang {
     French -> "Nous avons besoin de votre nom avant de continuer"
-    Croatian -> "Pogledajte opcije"
+    Croatian -> "Unesete svoje podatke prije nastavka"
     English -> "Please provide your info before continuing"
   }
 }

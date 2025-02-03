@@ -1,3 +1,4 @@
+import app/admin
 import app/auth_page
 import app/crud
 import app/list_page
@@ -15,7 +16,6 @@ import lila/web
 import pog
 import sql
 import wisp.{type Request, type Response}
-import youid/uuid
 
 // Route handlers -----------------------------------------
 
@@ -40,6 +40,10 @@ pub fn route_request(req: Request, ctx: web.Context) -> Response {
     _, ["item", ..segments], _ -> {
       handle_item_routes(req, ctx, segments:, query_params:, maybe_user:)
     }
+
+    // Admin
+    _, ["admin", ..segments], [#("lang", lang)] ->
+      handle_admin_route(req, ctx, segments, lang)
 
     _, _, _ -> wisp.not_found()
   }
@@ -70,8 +74,18 @@ fn handle_item_routes(
   }
 }
 
-fn handle_single_item(req: Request) -> Response {
-  todo
+fn handle_admin_route(
+  req: Request,
+  ctx: web.Context,
+  segments: List(String),
+  lang_iso: String,
+) -> Response {
+  use req, lang <- web.validate_lang(req, lang_iso)
+
+  case segments {
+    [] -> admin.admin_page(req.path, lang) |> utils.page_to_response
+    _ -> panic
+  }
 }
 
 fn handle_user_actions(

@@ -25,7 +25,7 @@ pub fn string_to_env(s: String) {
 }
 
 pub type Context {
-  Context(static_directory: String, db: pog.Connection)
+  Context(static_directory: String, db: pog.Connection, admin_password: String)
 }
 
 pub fn static_directory() -> String {

@@ -17,11 +17,16 @@ pub fn main() {
   io.debug(env)
 
   let assert Ok(secret_key_base) = utils.get_env("WISP_SECRET_KEY_BASE")
+  let assert Ok(admin_password) = utils.get_env("LILA_ADMIN_PASSWORD")
 
   wisp.configure_logger()
 
   let ctx =
-    Context(static_directory: static_directory(), db: connect_to_db(env))
+    Context(
+      static_directory: static_directory(),
+      db: connect_to_db(env),
+      admin_password:,
+    )
 
   let handler = router.route_request(_, ctx)
 

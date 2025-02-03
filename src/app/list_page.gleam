@@ -170,8 +170,6 @@ pub fn user_actions(
     Some(v) -> " (" <> translations.position_in_waitlist(lang, v) <> ")"
   }
 
-  let waitlist_text = waitlist_text <> my_spot_text
-
   let endpoint =
     case pos_wait {
       None -> "/item/" <> item_id <> "/add-to-wait-list"
@@ -180,27 +178,39 @@ pub fn user_actions(
     <> "?lang="
     <> language.to_iso(lang)
 
-  let waitlist_elt = case waitlist_text {
-    "" -> html.div([], [])
-    v -> {
-      html.p([class("text-center italic")], [html.text(v)])
+  let waitlist_elts = case waitlist_text, my_spot_text {
+    "", _ -> []
+    v, w -> {
+      [
+        html.p([class("text-center italic mt-4")], [html.text(v)]),
+        html.p([class("text-center text-sm")], [html.text(w)]),
+      ]
     }
   }
 
-  let button = case pos_wait {
-    None ->
+  let button = case n_wait, pos_wait {
+    0, None ->
       elements.green_button(
         [
-          class("w-full h-full"),
+          class("w-full h-full min-h-16"),
           attributes.hx_post(endpoint),
           attributes.hx_target("actions-" <> item_id),
         ],
         [button_text],
       )
-    Some(_) ->
+    _, None ->
+      elements.amber_button(
+        [
+          class("w-full h-full min-h-16"),
+          attributes.hx_post(endpoint),
+          attributes.hx_target("actions-" <> item_id),
+        ],
+        [button_text],
+      )
+    _, Some(_) ->
       elements.red_button(
         [
-          class("w-full h-full"),
+          class("w-full h-full min-h-16"),
           attributes.hx_post(endpoint),
           attributes.hx_target("actions-" <> item_id),
         ],
@@ -209,20 +219,16 @@ pub fn user_actions(
   }
 
   let waitlist_button = {
-    html.div(
-      [
-        class(
-          "flex-1 md:w-full flex flex-col gap-2 items-center justify-center",
-        ),
-      ],
-      [button, waitlist_elt],
-    )
+    html.div([class("flex-1 md:w-full flex flex-col")], [
+      button,
+      ..waitlist_elts
+    ])
   }
 
   html.form(
     [
       class(
-        "md:w-2/6 p-4 flex md:flex-col flex-wrap items-center justify-center gap-4",
+        "md:w-2/6 p-4 flex md:flex-col flex-wrap md:items-center md:justify-center items-stretch gap-4",
       ),
       attribute.id("actions-" <> item_id),
       attributes.hx_swap(attributes.OuterHTML),
@@ -230,14 +236,10 @@ pub fn user_actions(
     case user_info {
       Some(_) -> [
         waitlist_button,
-        elements.button([class("flex-1 md:w-full")], [
-          html.a(
-            [
-              attribute.href(email_href_for_more_info(lang, item_name)),
-              class("py-2 px-4 w-full h-full"),
-            ],
-            [lang |> translations.i_need_more_info |> html.text],
-          ),
+        elements.button([class("flex-1 md:w-full min-h-16")], [
+          html.a([attribute.href(email_href_for_more_info(lang, item_name))], [
+            lang |> translations.i_need_more_info |> html.text,
+          ]),
         ]),
       ]
       _ -> [provide_info_button(lang)]
