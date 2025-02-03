@@ -114,7 +114,7 @@ fn single_item(
         [class("md:w-4/6 p-4 flex flex-col gap-4 items-start justify-center")],
         [
           html.div([class("flex w-full")], [
-            elements.h2([class("mr-auto")], item.name),
+            elements.h2([class("mr-auto pr-2")], item.name),
             elements.h2([], price <> "€"),
           ]),
           elements.p([], item.description),
