@@ -60,6 +60,38 @@ VALUES
   |> pog.execute(db)
 }
 
+/// A row you get from running the `get_unique_item_ids` query
+/// defined in `./src/sql/get_unique_item_ids.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v3.0.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type GetUniqueItemIdsRow {
+  GetUniqueItemIdsRow(id: String)
+}
+
+/// Runs the `get_unique_item_ids` query
+/// defined in `./src/sql/get_unique_item_ids.sql`.
+///
+/// > 🐿️ This function was generated automatically using v3.0.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn get_unique_item_ids(db) {
+  let decoder = {
+    use id <- decode.field(0, decode.string)
+    decode.success(GetUniqueItemIdsRow(id:))
+  }
+
+  let query = "SELECT
+    DISTINCT id
+FROM
+    items"
+
+  pog.query(query)
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
 /// Runs the `insert_user` query
 /// defined in `./src/sql/insert_user.sql`.
 ///
@@ -137,6 +169,42 @@ FROM items
 INNER JOIN item_text
     ON items.id = item_text.item_id
 WHERE lang = $1"
+
+  pog.query(query)
+  |> pog.parameter(pog.text(arg_1))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
+/// A row you get from running the `get_users_in_waitlist` query
+/// defined in `./src/sql/get_users_in_waitlist.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v3.0.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type GetUsersInWaitlistRow {
+  GetUsersInWaitlistRow(email: String)
+}
+
+/// Runs the `get_users_in_waitlist` query
+/// defined in `./src/sql/get_users_in_waitlist.sql`.
+///
+/// > 🐿️ This function was generated automatically using v3.0.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn get_users_in_waitlist(db, arg_1) {
+  let decoder = {
+    use email <- decode.field(0, decode.string)
+    decode.success(GetUsersInWaitlistRow(email:))
+  }
+
+  let query = "SELECT
+    users.email
+FROM
+    waitlists
+    INNER JOIN users ON waitlists.user_id = users.id
+WHERE
+    item_id = $1"
 
   pog.query(query)
   |> pog.parameter(pog.text(arg_1))
@@ -306,116 +374,6 @@ WHERE
   |> pog.execute(db)
 }
 
-/// A row you get from running the `get_item_with_info_and_state` query
-/// defined in `./src/sql/get_item_with_info_and_state.sql`.
-///
-/// > 🐿️ This type definition was generated automatically using v3.0.0 of the
-/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
-///
-pub type GetItemWithInfoAndStateRow {
-  GetItemWithInfoAndStateRow(
-    id: String,
-    user_action: ItemActionOld,
-    user_action_book: Bool,
-    n_interested: Int,
-    is_reserved: Bool,
-    name: String,
-    description: String,
-    comment: Option(String),
-    average_price: Float,
-    link: Option(String),
-  )
-}
-
-/// Runs the `get_item_with_info_and_state` query
-/// defined in `./src/sql/get_item_with_info_and_state.sql`.
-///
-/// > 🐿️ This function was generated automatically using v3.0.0 of
-/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
-///
-pub fn get_item_with_info_and_state(db, arg_1, arg_2) {
-  let decoder = {
-    use id <- decode.field(0, decode.string)
-    use user_action <- decode.field(1, item_action_old_decoder())
-    use user_action_book <- decode.field(2, decode.bool)
-    use n_interested <- decode.field(3, decode.int)
-    use is_reserved <- decode.field(4, decode.bool)
-    use name <- decode.field(5, decode.string)
-    use description <- decode.field(6, decode.string)
-    use comment <- decode.field(7, decode.optional(decode.string))
-    use average_price <- decode.field(8, decode.float)
-    use link <- decode.field(9, decode.optional(decode.string))
-    decode.success(
-      GetItemWithInfoAndStateRow(
-        id:,
-        user_action:,
-        user_action_book:,
-        n_interested:,
-        is_reserved:,
-        name:,
-        description:,
-        comment:,
-        average_price:,
-        link:,
-      ),
-    )
-  }
-
-  let query = "SELECT
-    t.item_id AS id,
-    item_actions.action AS user_action,
-    item_actions.action_bool AS user_action_book,
-    ttt.n_interested,
-    ttt.is_reserved,
-    tx.name,
-    tx.description,
-    tx.comment,
-    it.average_price,
-    it.link
-FROM
-    (
-        item_actions
-        INNER JOIN (
-            SELECT
-                item_id,
-                action,
-                MAX(created_at) AS timestamp
-            FROM
-                item_actions
-            WHERE
-                user_id = $1
-            GROUP BY
-                item_id,
-                action
-        ) AS t ON item_actions.item_id = t.item_id
-        AND item_actions.action = t.action
-        AND item_actions.created_at = t.timestamp
-    )
-    LEFT JOIN (
-        SELECT
-            item_id,
-            COUNT(*) FILTER (
-                WHERE
-                    action = 'interested'
-            ) AS n_interested,
-            BOOL_OR(action = 'will_buy') AS is_reserved
-        FROM
-            item_actions
-        GROUP BY
-            item_id
-    ) AS ttt ON t.item_id = ttt.item_id
-    INNER JOIN item_text AS tx ON t.item_id = tx.item_id
-    INNER JOIN items AS it ON it.id = t.item_id
-WHERE
-    tx.lang = $2"
-
-  pog.query(query)
-  |> pog.parameter(pog.text(arg_1))
-  |> pog.parameter(pog.text(arg_2))
-  |> pog.returning(decoder)
-  |> pog.execute(db)
-}
-
 /// A row you get from running the `get_items_with_info` query
 /// defined in `./src/sql/get_items_with_info.sql`.
 ///
@@ -479,78 +437,4 @@ WHERE
   |> pog.parameter(pog.text(arg_1))
   |> pog.returning(decoder)
   |> pog.execute(db)
-}
-
-/// A row you get from running the `get_user_state_for_item` query
-/// defined in `./src/sql/get_user_state_for_item.sql`.
-///
-/// > 🐿️ This type definition was generated automatically using v3.0.0 of the
-/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
-///
-pub type GetUserStateForItemRow {
-  GetUserStateForItemRow(action: ItemActionOld, action_bool: Bool)
-}
-
-/// Runs the `get_user_state_for_item` query
-/// defined in `./src/sql/get_user_state_for_item.sql`.
-///
-/// > 🐿️ This function was generated automatically using v3.0.0 of
-/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
-///
-pub fn get_user_state_for_item(db, arg_1, arg_2) {
-  let decoder = {
-    use action <- decode.field(0, item_action_old_decoder())
-    use action_bool <- decode.field(1, decode.bool)
-    decode.success(GetUserStateForItemRow(action:, action_bool:))
-  }
-
-  let query = "SELECT
-    item_actions.action,
-    item_actions.action_bool
-FROM
-    item_actions
-    INNER JOIN (
-        SELECT
-            item_id,
-            action,
-            MAX(created_at) AS timestamp
-        FROM
-            item_actions
-        WHERE
-            user_id = $1
-        GROUP BY
-            item_id,
-            action
-    ) AS t ON item_actions.item_id = t.item_id
-    AND item_actions.action = t.action
-    AND item_actions.created_at = t.timestamp
-WHERE
-    item_actions.item_id = $2"
-
-  pog.query(query)
-  |> pog.parameter(pog.text(arg_1))
-  |> pog.parameter(pog.text(arg_2))
-  |> pog.returning(decoder)
-  |> pog.execute(db)
-}
-
-// --- Enums -------------------------------------------------------------------
-
-/// Corresponds to the Postgres `item_action_old` enum.
-///
-/// > 🐿️ This type definition was generated automatically using v3.0.0 of the
-/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
-///
-pub type ItemActionOld {
-  WillBuy
-  Interested
-}
-
-fn item_action_old_decoder() {
-  use variant <- decode.then(decode.string)
-  case variant {
-    "will_buy" -> decode.success(WillBuy)
-    "interested" -> decode.success(Interested)
-    _ -> decode.failure(WillBuy, "ItemActionOld")
-  }
 }

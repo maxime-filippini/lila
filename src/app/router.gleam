@@ -2,6 +2,7 @@ import app/admin
 import app/auth_page
 import app/crud
 import app/list_page
+import app/waitlist
 import gleam/http.{Get, Post}
 import gleam/io
 import gleam/list
@@ -45,6 +46,8 @@ pub fn route_request(req: Request, ctx: web.Context) -> Response {
     _, ["admin", ..segments], [#("lang", lang)] ->
       handle_admin_route(req, ctx, segments, lang)
 
+    _, ["waitlist", ..segments], [#("id", item_id)] ->
+      handle_waitlist_get(req, ctx, segments, item_id)
     _, _, _ -> wisp.not_found()
   }
 }
@@ -82,8 +85,29 @@ fn handle_admin_route(
 ) -> Response {
   use req, lang <- web.validate_lang(req, lang_iso)
 
+  let assert Ok(pog.Returned(_count, rows)) = sql.get_items(ctx.db, lang_iso)
+
   case segments {
-    [] -> admin.admin_page(req.path, lang) |> utils.page_to_response
+    [] ->
+      admin.admin_page(req.path, lang, rows)
+      |> utils.page_to_response
+    _ -> panic
+  }
+}
+
+fn handle_waitlist_get(
+  req: Request,
+  ctx: web.Context,
+  segments: List(String),
+  item_id: String,
+) -> Response {
+  let assert Ok(pog.Returned(_count, rows)) =
+    sql.get_users_in_waitlist(ctx.db, item_id)
+
+  case segments {
+    [] ->
+      waitlist.waitlist(rows)
+      |> utils.page_to_response
     _ -> panic
   }
 }
